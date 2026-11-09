@@ -14,7 +14,11 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { aCodexForEachCase, theResultOfTheSearch } from './support/the-codex.js';
+import {
+  aCodexForEachCase,
+  theResultOfTheSearch,
+  theServersTheHostListsSay,
+} from './support/the-codex.js';
 import {
   theEntriesOf,
   theFirstThatOffersTools,
@@ -35,8 +39,8 @@ describe("what Codex sends of the plugin's tools", () => {
     expect(entries.map((entry) => entry['name']).filter(Boolean)).toContain('exec_command');
     expect(named('mnema')).toEqual([]);
     expect(named('mcp__mnema')).toEqual([]);
-    expect(String(search?.['description'])).toContain('- mnema:');
-    expect(weigh(JSON.stringify(search))).toEqual({ bytes: 2_866, tokens: 678 });
+    expect(theServersTheHostListsSay(session)).toMatch(/- (?:mcp__)?mnema\w*: /);
+    expect(weigh(JSON.stringify(search))).toEqual({ bytes: 699, tokens: 151 });
   }, 180_000);
 
   it('returns, for a query, one namespace of the definitions it ranked first, and they weigh this much', async () => {

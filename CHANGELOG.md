@@ -12,6 +12,16 @@ with its own changelog.
 
 ### Changed
 
+- **The MCP server's instructions open with what to do.** Their first 250 characters now say to call `record_decision`
+  when a choice is settled that someone could later question, then what mnema is. A host may show a server by no more
+  than its opening: Codex 0.167 lists each server it defers by its first 250 characters. The rest of the text says what
+  it said, a little shorter, and stays under 2,048 characters.
+
+- **The host contract holds Codex 0.167.0, Claude Code 2.1.311 and Copilot CLI 1.0.108.** Codex 0.167 lists a server in a
+  developer message, `<tools> Deferred tool namespaces:`, and no longer in the description of its search entry (699
+  bytes, 151 tokens), so the cases read both. Claude Code 2.1.311 asks again for a summary when a reply carries no
+  summary block, so the compaction case answers with one.
+
 - **The `mnema` command starts in about half the time.** The `bin` of `@mnema/code` is now `dist/bundle/cli.js`, one
   bundle of the command and of the code it reaches, its dependencies included (all but `string-width`), split into
   chunks so the Node version check still runs before anything else is loaded. Median of 20 starts on one machine,
