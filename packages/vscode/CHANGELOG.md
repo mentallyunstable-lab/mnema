@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.7
+
+- No change to the extension: this release only moves its version number along with the rest of the project.
+
 ## 0.1.6
 
 - The extension's addresses moved with the project: the repository, the issues page and the install link in the

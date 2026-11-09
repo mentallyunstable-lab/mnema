@@ -10,6 +10,8 @@ with its own changelog.
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-11-09
+
 ### Fixed
 
 - **`mnema record commit` carries the record's README when mnema itself rewrote it.** A project founded with an older
@@ -2854,6 +2856,7 @@ Requires Node ≥ 22.12.0; the packages are ESM-only.
   committed tree (`packages/chain/FORMAT.md` §4.1).
 
 [Unreleased]: https://github.com/mnema-work/mnema/commits/main
+[0.1.7]: https://github.com/mnema-work/mnema/releases/tag/v0.1.7
 [0.1.6]: https://github.com/mnema-work/mnema/releases/tag/v0.1.6
 [0.1.5]: https://github.com/mnema-work/mnema/releases/tag/v0.1.5
 [0.1.4]: https://github.com/mnema-work/mnema/releases/tag/v0.1.4
