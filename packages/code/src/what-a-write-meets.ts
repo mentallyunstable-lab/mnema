@@ -25,7 +25,13 @@
 
 import { sep } from 'node:path';
 import { DEFAULT_WAIT_MS, TailBusyError, UnreadableLineError } from '@mnema/chain';
-import { channelIsOn, type PushedRule, type RulesAtPath, type ScopedCache } from '@mnema/context';
+import {
+  channelIsOn,
+  type PushedRule,
+  type RulesAtPath,
+  ruleTree,
+  type ScopedCache,
+} from '@mnema/context';
 import {
   ASKS_FOR_A_PERSON_RELATION,
   acceptedAgainstRetired,
@@ -170,6 +176,31 @@ export interface WriteVerdict {
   readonly notices: readonly string[];
 }
 
+/** The facts of one tree: the paths and rules whose facts are written there. */
+export interface FactsOfATree {
+  /** The tree the rules' facts go to. */
+  readonly tree: Scope;
+  /** The paths that met a rule held by that tree, each with only those rules. */
+  readonly at: readonly RulesAtPath[];
+}
+
+/**
+ * Splits what a write met by the tree that holds each rule: a fact a rule causes is written to the
+ * rule's own tree, so the id of a rule that does not travel never reaches the tree a clone gets.
+ * The order of paths and of rules is kept inside each tree, and the trees come in the order their
+ * first rule appears.
+ */
+export function factsByTree(ats: readonly RulesAtPath[]): readonly FactsOfATree[] {
+  const trees = new Map<Scope, RulesAtPath[]>();
+  for (const at of ats) {
+    for (const tree of new Set(at.rules.map(ruleTree))) {
+      const rules = at.rules.filter((rule) => ruleTree(rule) === tree);
+      trees.set(tree, [...(trees.get(tree) ?? []), { ...at, rules }]);
+    }
+  }
+  return [...trees].map(([tree, at]) => ({ tree, at }));
+}
+
 /** How many times a session hears a rule's notice whole before it is told in one line. */
 export const NOTICES_SAID_WHOLE = 3;
 
@@ -273,6 +304,25 @@ export function refusalOfAnUnreadableRecord(
     `The write is refused: a line of ${words.tree} cannot be read by this mnema, so which rules apply to this path cannot be known.`,
     error.message,
     words.out,
+  ].join('\n\n');
+}
+
+/**
+ * What a command line says when it met a stored line it cannot read: the line (file and position, so
+ * the tail), what the unreadable tree closes, the ways out the refusal of a write names, and the
+ * command that lists every such line. Every write is refused until the line reads, and so is
+ * `switch off`: the switch is a fact of the same record.
+ */
+export function unreadableLineSentence(
+  error: UnreadableLineError,
+  trees: readonly Pick<ScopedCache, 'scope' | 'chainRoot'>[],
+): string {
+  const words = UNREADABLE_IN[treeOfTheLine(error.locus, trees) ?? 'unknown'];
+  return [
+    `Nothing was done: ${words.tree} holds a line this mnema cannot read.`,
+    error.message,
+    words.out,
+    'Switching a channel off is a write to the same record, so it is refused too. `mnema verify` lists every unreadable line with its tail and position.',
   ].join('\n\n');
 }
 

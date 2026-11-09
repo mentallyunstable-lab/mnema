@@ -18,6 +18,7 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { type CatalogEvent, catalogUpcasters } from '@mnema/chain';
+import { resolveTrees } from '@mnema/core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { runDecisionTransition } from '../src/commands/decision-transition.js';
 import { resolveAddress } from '../src/label-as-address.js';
@@ -289,6 +290,64 @@ describe('a supersede by a proposal', () => {
     expect(said.out).not.toContain('still proposed');
   });
 
+  it('says, in the plural, that two decisions a rejected successor replaced stay superseded', async () => {
+    repo();
+    await mnema('init');
+    const first = idOf((await mnema('decision', 'record', 'Use UTC', 'three zones')).out);
+    const second = idOf((await mnema('decision', 'record', 'Use local', 'two zones')).out);
+    const third = idOf((await mnema('decision', 'record', 'Use offsets', 'one zone')).out);
+    for (const id of [first, second, third])
+      await mnema('decision', 'move', 'accept', id, '--note', 'ok');
+    const next = idOf((await mnema('decision', 'record', 'Use ISO instants', 'one format')).out);
+    for (const id of [first, second, third])
+      await mnema('decision', 'supersede', id, next, '--reason', 'newer');
+    const shown = await mnema('show', next);
+    const named = shown.out.split('\n').filter((line) => line.includes('supersedes ADR-'));
+    expect(named).toHaveLength(3);
+    // The one the projection names (the last replaced) first, the others by their labels.
+    expect(named.map((line) => /ADR-\d+/.exec(line)?.[0])).toEqual(['ADR-3', 'ADR-1', 'ADR-2']);
+    const said = await mnema('decision', 'move', 'reject', next, '--note', 'no');
+    expect(said.out).toContain('were superseded by this decision and stay superseded');
+    expect(said.out).toContain('nothing is in force on those subjects');
+  });
+
+  it('names every decision a successor replaced when it replaced more than one', async () => {
+    repo();
+    await mnema('init');
+    const first = idOf((await mnema('decision', 'record', 'Use UTC', 'three zones')).out);
+    const second = idOf((await mnema('decision', 'record', 'Use local', 'two zones')).out);
+    const next = idOf((await mnema('decision', 'record', 'Use ISO instants', 'one format')).out);
+    await mnema('decision', 'move', 'accept', next, '--note', 'agreed');
+    await mnema('decision', 'supersede', first, next, '--reason', 'newer');
+    await mnema('decision', 'supersede', second, next, '--reason', 'newer');
+    const said = await mnema('show', next);
+    expect(said.out).toContain(`supersedes ADR-1: Use UTC (superseded) · ${first}`);
+    expect(said.out).toContain(`supersedes ADR-2: Use local (superseded) · ${second}`);
+    // One predecessor is still named once.
+    const lines = said.out.split('\n').filter((line) => line.includes('supersedes ADR-'));
+    expect(lines).toHaveLength(2);
+  });
+
+  it('says what a rejection of the successor leaves: the decision it replaced stays superseded', async () => {
+    repo();
+    await mnema('init');
+    const old = idOf((await mnema('decision', 'record', 'Use UTC', 'three zones')).out);
+    await mnema('decision', 'move', 'accept', old, '--note', 'agreed');
+    const next = idOf((await mnema('decision', 'record', 'Use ISO instants', 'one format')).out);
+    await mnema('decision', 'supersede', old, next, '--reason', 'newer');
+    const said = await mnema('decision', 'move', 'reject', next, '--note', 'no');
+    expect(said.failed).toBe(false);
+    expect(said.out).toContain('→ rejected');
+    expect(said.out).toContain(
+      `ADR-1 (${old}) was superseded by this decision and stays superseded, so nothing is in force on that subject`,
+    );
+    // A rejection of a decision that replaced nothing says nothing of the kind.
+    const alone = idOf((await mnema('decision', 'record', 'Use Z', 'offset')).out);
+    const plain = await mnema('decision', 'move', 'reject', alone, '--note', 'no');
+    expect(plain.out).toContain('→ rejected');
+    expect(plain.out).not.toContain('superseded by this decision');
+  });
+
   it('is one function for both surfaces, and it reads the successor’s state off the record', async () => {
     const dir = repo();
     await mnema('init');
@@ -382,6 +441,51 @@ describe('timeline', () => {
   });
 });
 
+describe('a switch met by a line the record cannot read', () => {
+  it('is refused with the line, the tail and the way out named, and nothing is written', async () => {
+    const dir = repo();
+    await mnema('init');
+    await mnema('decision', 'record', 'Use UTC', 'three zones');
+    const tails = join(dir, '.mnema', 'tails');
+    const tail = readdirSync(tails)[0] as string;
+    const segment = join(tails, tail, '000001.jsonl');
+    writeFileSync(segment, `${readFileSync(segment, 'utf-8')}{"this is not json\n`, 'utf-8');
+    const bytes = readFileSync(segment, 'utf-8');
+    const said = await mnema('switch', 'off', 'edit-rules-push');
+    expect(said.failed).toBe(true);
+    expect(said.err).toContain(`unreadable stored line at ${segment} byte offset`);
+    expect(said.err).toContain(tail);
+    expect(said.err).toContain('the project’s public record holds a line this mnema cannot read');
+    expect(said.err).toContain('restore the line from the repository’s history');
+    expect(said.err).toContain('Switching a channel off is a write to the same record');
+    expect(said.err).toContain('`mnema verify` lists every unreadable line');
+    expect(readFileSync(segment, 'utf-8')).toBe(bytes);
+  });
+});
+
+describe('a write met by a line of the global record, outside any project', () => {
+  it('names the global record and what it closes', async () => {
+    const dir = repo('plain', { git: false });
+    const recorded = await mnema(
+      'decision',
+      'record',
+      'Use UTC',
+      'three zones',
+      '--scope',
+      'global',
+    );
+    expect(recorded.failed, recorded.err).toBe(false);
+    const { global } = resolveTrees(dir, { home });
+    const tails = join(global, 'tails');
+    const segment = join(tails, readdirSync(tails)[0] as string, '000001.jsonl');
+    writeFileSync(segment, `${readFileSync(segment, 'utf-8')}{"this is not json\n`, 'utf-8');
+    const said = await mnema('decision', 'record', 'Use ISO', 'one format', '--scope', 'global');
+    expect(said.failed).toBe(true);
+    expect(said.err).toContain('this machine’s global record holds a line this mnema cannot read');
+    expect(said.err).toContain('closes every project on this machine');
+  });
+});
+
 describe('the agent’s surface says what the command line says', () => {
   const read = (path: string): string =>
     readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf-8');
@@ -393,6 +497,14 @@ describe('the agent’s surface says what the command line says', () => {
       expect(read(path), path).not.toContain('still proposed');
     }
     expect(read('moved-record.ts')).toContain('is still proposed, so nothing is in force');
+  });
+
+  it('asks the rejection question of one function too, from both surfaces', () => {
+    for (const path of ['commands/decision-transition.ts', 'mcp/tools.ts']) {
+      expect(read(path), path).toContain('rejectLeavesNothingInForce(');
+      expect(read(path), path).not.toContain('superseded by this decision');
+    }
+    expect(read('moved-record.ts')).toContain('superseded by this decision');
   });
 
   it('asks the successor question of one function too: only a supersede reads `by`', async () => {
