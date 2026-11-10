@@ -75,6 +75,9 @@ with its own changelog.
 
 ### Fixed
 
+- **The rules read before an edit no longer slows with the number of rules.** Naming what replaced each rule re-read
+  every decision once per rule, so a project with 600 rules and 3,000 decisions waited several seconds on each edit, even
+  for a path no rule names; it is now one indexed lookup per rule, with the same answers.
 - **Four pages said what the binary does not.** The two-machines page (`docs/convergence.md`) typed `ADR-1` after an `mnema init` that, at a
   terminal, records a decision of its own first, so on a newcomer's machine the commands named init's decision; it now runs
   `mnema init --yes`, which asks nothing, and says why. The how-it-works page said `decision move` refuses a label, but it
