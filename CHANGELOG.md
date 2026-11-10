@@ -12,6 +12,11 @@ with its own changelog.
 
 ### Added
 
+- **The README's hosts table shows each host by its vendor's own logo file.** The files are in `assets/hosts/`, as
+  published and unmodified, with a `SOURCES.md` beside them that gives each file's source, date and sha256; the table no
+  longer links to a third party's redraw of a logo. Codex, whose vendor publishes no file that was found, is shown by its
+  name. A line under the table names the owners of the logos and says they imply no endorsement, and a test holds that
+  every image of the table is one of those files with a row and a matching hash.
 - **`mnema verify --json` says each tree in a line.** Every tree of the reading has a `headline`: the text of the line the
   console's panel shows for it (the level clause of a tree that holds a record, `no record here` for one that does not), made
   by the same function as the panel, so the two cannot say two things; a `short`, the same verdict in plain words without the
