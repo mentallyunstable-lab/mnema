@@ -17,6 +17,9 @@ pnpm test
 other's built output, so a stale `dist` makes both go green over code that no longer exists.
 After a change to text, a page, the changelog or a list of files, `pnpm test:guards` runs just
 the cases that walk the whole tree; it does not replace `pnpm test`.
+A change that shows to a reader adds its changelog entry as its own file,
+`changelog/unreleased/<short-slug>.md` (the section on its first line, then the bullet), never a line in
+`CHANGELOG.md`; [`CONTRIBUTING.md`](CONTRIBUTING.md) says how.
 Run the whole `pnpm test` once before you push, not only the files you touched: the guards
 walk the tree and count its files and lines, so a focused case that passes proves little.
 When a case is red, keep the output, then run `pnpm why-it-went-red`: it says whether the
@@ -67,7 +70,7 @@ Each line is a rule in force in this repository's record; the decision it cites,
 - A decision cites the premise it read: a file and line, a URL, or a reproduced probe (ADR-294).
 - One agent's probe is reproduced by another before it is a fact or a question to the maintainer (ADR-295).
 - The review verdict is posted, summarised, on the pull request (ADR-296).
-- A change in behaviour changes its page and the changelog (ADR-297).
+- A change in behaviour changes its page and adds its changelog entry as a file under `changelog/unreleased/` (ADR-297, ADR-311).
 - The architecture page (`docs/architecture.md`, once it exists) maps the packages and their layers (ADR-298).
 - A module's header comment states its invariant and the test that holds it (ADR-299).
 - A comparison with another tool is an honest one, and says when to choose the other (ADR-300).
