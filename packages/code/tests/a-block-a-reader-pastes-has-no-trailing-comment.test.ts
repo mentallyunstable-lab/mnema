@@ -20,7 +20,7 @@
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { read, ROOT } from './support/published-examples.js';
+import { ROOT, read } from './support/published-examples.js';
 import { endsInAComment, linesOf } from './support/reading-a-shell-line.js';
 import { writtenByHand } from './support/the-reference-pages.js';
 
