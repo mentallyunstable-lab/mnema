@@ -395,6 +395,47 @@ const AGREEMENTS: readonly Agreement[] = [
     },
   },
   {
+    // Section 6: `prev` names the LINE before. The product sorted the lines by `fromSeq` and
+    // verified two swapped lines; the second reader refused them. Both refuse, at the first.
+    name: 'checkpoints-out-of-order',
+    verdict: 'refused',
+    product: { layer: 'T2/T4', says: 'checkpoint chain break' },
+    second: {
+      section: '6',
+      says: 'prev is',
+      where: 'checkpoints.jsonl:2 cp[3..3]',
+      refusals: 2,
+    },
+  },
+  {
+    // Section 4: a tail that is a symbolic link is refused by name in both. The product skipped
+    // it (no tail held) and the second reader followed it (verified).
+    name: 'tail-linked',
+    verdict: 'refused',
+    product: { layer: 'T1', says: 'LINKED TAIL: tails/7e5a72fd' },
+    second: {
+      section: '4',
+      says: 'is a symbolic link',
+      where:
+        'tails/7e5a72fd0ea237237651690087e4a87133dab8b78847efadde778f633214cca4-05e27e636158e547a09e594545603717',
+      refusals: 2,
+    },
+  },
+  {
+    // Beside a tail both read, which is where the split was silent: the product verified the
+    // record over one tail and the second reader over two.
+    name: 'tail-linked-beside-a-real-one',
+    verdict: 'refused',
+    product: { layer: 'T1', says: 'LINKED TAIL: tails/deb2ded39dc2' },
+    second: {
+      section: '4',
+      says: 'is a symbolic link',
+      where:
+        'tails/deb2ded39dc26fce0e6085b6fc34bf6b5941913bbfe2ea614113cff9e004c170-cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd',
+      refusals: 1,
+    },
+  },
+  {
     // ADR-123: one tail written from one head in two places and joined. Both readers used to
     // call it a gap in the sequence, which says nothing of what happened; both name it a fork,
     // at the second line that holds the seq, and say it once.
@@ -751,6 +792,42 @@ describe('the two readers reach the same verdict on the same bytes, and name the
     const there = secondReading(record);
     expect(there.verdict).toBe('REFUSED');
     expect(there.refusals.map((finding) => finding.what).join('\n')).toContain('no tailproof.json');
+  });
+});
+
+/**
+ * THE ORDER OF THE LINES DECIDES WHICH CHECKPOINT A CHECK NAMES, in both readers (FORMAT.md
+ * section 6). On these two the first cause is the chain break both readers name at line 2, so
+ * the cause compared here is the one the order decides: the signer check names the first
+ * checkpoint another key signs, and the naming check names a `/1` checkpoint after a `/2` one.
+ * Read sorted by `fromSeq`, the first would name `cp[2..2]` and the second nothing at all.
+ */
+describe('the two readers read the checkpoints of a tail in the order of their lines', () => {
+  const ROWS = [
+    [
+      'checkpoints-out-of-order-by-another-key',
+      'checkpoint cp[3..3] is signed by 6bc98177967e...',
+      'tail-signer-mismatch',
+    ],
+    [
+      'checkpoints-out-of-order-one-names-a-record',
+      'checkpoint cp[2..2] names no record, and an earlier checkpoint names one',
+      'scheme-downgrade',
+    ],
+  ] as const;
+
+  it.each(ROWS)('names the same checkpoint for %s', (name, says, code) => {
+    const record = mutated(name);
+    const here = verify(record, catalogUpcasters());
+    const there = secondReading(record);
+    expect(here.ok).toBe(false);
+    expect(there.verdict).toBe('REFUSED');
+    expect(here.issues[0]?.detail).toContain('checkpoint chain break');
+    expect(there.refusals[0]?.what).toContain('prev is');
+    const product = here.issues.filter((issue) => issue.detail.includes(`(${code})`));
+    const second = there.refusals.filter((finding) => finding.what.includes(`(${code})`));
+    expect(product.map((issue) => issue.detail)).toEqual([expect.stringContaining(says)]);
+    expect(second.map((finding) => finding.what)).toEqual([expect.stringContaining(says)]);
   });
 });
 

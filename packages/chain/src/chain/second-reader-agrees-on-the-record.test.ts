@@ -872,6 +872,61 @@ const MUTATIONS = [
     productBreaks: 'ok',
   },
   {
+    // Section 6: the lines are in chain order and `prev` names the line before. The product
+    // sorted them by `fromSeq` first and read two swapped lines as an intact chain.
+    name: 'checkpoints-out-of-order',
+    refusals: 2,
+    section: '6',
+    says: 'prev is',
+    productSays: 'checkpoint chain break',
+    productLayer: 'T2/T4',
+    productBreaks: 'ok',
+  },
+  {
+    // The same swap, with both lines pointed at another key: the signer check names the first
+    // in the order of the lines (`both-readers-read-the-same-bytes.test.ts`).
+    name: 'checkpoints-out-of-order-by-another-key',
+    refusals: 5,
+    section: '6',
+    says: 'checkpoint cp[3..3] is signed by',
+    productSays: 'checkpoint cp[3..3] is signed by',
+    productLayer: 'T2/T4',
+    productBreaks: 'ok',
+  },
+  {
+    // The same swap, the line now second naming a record: a downgrade in the order of the lines,
+    // none in the order of `fromSeq`.
+    name: 'checkpoints-out-of-order-one-names-a-record',
+    refusals: 4,
+    section: '6.10',
+    says: 'checkpoint cp[2..2] names no record',
+    productSays: 'checkpoint cp[2..2] names no record',
+    productLayer: 'T2/T4',
+    productBreaks: 'ok',
+  },
+  {
+    // Section 4: a link under `tails/` is refused by name. The product skipped it and read the
+    // record as holding no tail; the second reader followed it and verified.
+    name: 'tail-linked',
+    refusals: 2,
+    section: '4',
+    says: 'is a symbolic link',
+    productSays: 'LINKED TAIL',
+    productLayer: 'T1',
+    productBreaks: 'ok',
+  },
+  {
+    // The same beside a tail both read: the product used to verify the record over the one tail
+    // it read, and the second reader over both.
+    name: 'tail-linked-beside-a-real-one',
+    refusals: 1,
+    section: '4',
+    says: 'is a symbolic link',
+    productSays: 'LINKED TAIL',
+    productLayer: 'T1',
+    productBreaks: 'ok',
+  },
+  {
     // ADR-123: a second, different line at a seq the tail already holds, following the same
     // line: one tail written from one head in two places and joined. A fork, in both readers.
     name: 'forked-tail',
